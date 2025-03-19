@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Set static folder for public files and uploaded files
+// Set static folder for public files and serve uploaded files
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -19,48 +19,48 @@ if (!fs.existsSync(uploadsDir)) {
 // Multer storage configuration: store only image files
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/')
+    cb(null, 'uploads/');
   },
   filename: function (req, file, cb) {
     // Prefix with timestamp to avoid naming collisions
-    cb(null, Date.now() + '-' + file.originalname)
+    cb(null, Date.now() + '-' + file.originalname);
   }
 });
 
 // File filter: accept only image files
 function fileFilter(req, file, cb) {
   console.log(file);
-  if(file.mimetype.startsWith('image/')) {
+  if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
     cb(new Error('Only image files are allowed!'), false);
   }
 }
 
+// IMPORTANT: Use the field name "file" to match the client request
 const upload = multer({ storage: storage, fileFilter: fileFilter });
 
 // Endpoint to handle file upload
-app.post('/upload', upload.single('image'), (req, res) => {
+app.post('/upload', upload.single('file'), (req, res) => {
   console.log(req.file);
-  
-  if(!req.file) {
+  if (!req.file) {
     return res.status(400).json({ success: false, message: 'No file uploaded or invalid file type.' });
   }
   return res.json({ success: true, message: 'File uploaded successfully.' });
 });
 
-// Endpoint to retrieve uploaded files list
+// Endpoint to retrieve the list of uploaded files
 app.get('/files', (req, res) => {
   fs.readdir(uploadsDir, (err, files) => {
-    if(err) {
+    if (err) {
       console.error(err);
       return res.status(500).json({ success: false, message: 'Error reading uploads directory.' });
     }
-    // Filter out non-image files (if any exist)
+    // Filter out non-image files (if any)
     files = files.filter(file => {
       const ext = path.extname(file).toLowerCase();
       return ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'].includes(ext);
-    });
+    }) || [];
     res.json({ success: true, files });
   });
 });

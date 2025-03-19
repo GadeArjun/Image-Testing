@@ -2,26 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Image Upload</title>
+  <title>Camera Capture and Upload</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="container">
-    <h1>Upload Image</h1>
-    <div id="message"></div>
-    <form id="uploadForm" enctype="multipart/form-data">
-      <div id="fileInputContainer">
-        <!-- This input will be swapped based on device detection -->
-        <input type="file" id="fileInput" name="image" accept="image/*" required>
-      </div>
-      <button type="submit">Upload</button>
-    </form>
-    <div id="loading" class="hidden">Loading...</div>
-    <div id="uploadedFiles">
-      <!-- Uploaded files will be listed here -->
-    </div>
+    <div id="alertBox"></div>
+
+    <button id="startCameraBtn">Open Camera</button>
+    <video id="video" autoplay style="display: none;"></video>
+    <button id="captureBtn" style="display: none;">Capture Photo</button>
+    <canvas id="canvas" style="display: none;"></canvas>
+
+    <h3>Captured Image:</h3>
+    <img id="capturedImage" src="" alt="Your captured image will appear here">
+    <button id="uploadBtn" style="display: none;">Upload Image</button>
+    <div class="details" id="details"></div>
+
+    <h3>Images from Server:</h3>
+    <div id="serverImages"></div>
   </div>
+
   <script src="script.js"></script>
 </body>
 </html>

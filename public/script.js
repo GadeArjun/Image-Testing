@@ -1,138 +1,131 @@
-document.addEventListener("DOMContentLoaded", function () {
-  const uploadForm = document.getElementById('uploadForm');
-  const fileInputContainer = document.getElementById('fileInputContainer');
-  const messageBox = document.getElementById('message');
-  const loadingIndicator = document.getElementById('loading');
-  const uploadedFilesContainer = document.getElementById('uploadedFiles');
+const startCameraBtn = document.getElementById('startCameraBtn');
+const video = document.getElementById('video');
+const captureBtn = document.getElementById('captureBtn');
+const canvas = document.getElementById('canvas');
+const capturedImage = document.getElementById('capturedImage');
+const uploadBtn = document.getElementById('uploadBtn');
+const detailsDiv = document.getElementById('details');
+const serverImagesDiv = document.getElementById('serverImages');
+const alertBox = document.getElementById('alertBox');
 
-  // Utility: Show message in a message box.
-  function showMessage(type, text) {
-    messageBox.innerHTML = `<div class="message ${type}">${text}</div>`;
-    setTimeout(() => {
-      messageBox.innerHTML = '';
-    }, 10000);
+let stream;
+let blobToUpload;
+
+function showAlert(message, type = 'info') {
+  alertBox.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+  setTimeout(() => (alertBox.innerHTML = ''), 10000);
+}
+
+
+// Start camera and show video preview
+startCameraBtn.addEventListener('click', async () => {
+  try {
+    // Check if the user agent indicates a mobile device
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // Set the facingMode: use "environment" for mobile to get the rear camera, "user" for non-mobile devices
+    const constraints = {
+      video: {
+        facingMode: { ideal: isMobile ? "environment" : "user" }
+      }
+    };
+
+    stream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = stream;
+    video.style.display = 'block';
+    captureBtn.style.display = 'inline-block';
+    showAlert('Camera opened. Ready to capture.', 'info');
+  } catch (err) {
+    showAlert('Error accessing camera: ' + err.message, 'danger');
   }
-
-  // Utility: Toggle loading indicator visibility.
-  function setLoading(state) {
-    if (state) {
-      loadingIndicator.classList.remove('hidden');
-    } else {
-      loadingIndicator.classList.add('hidden');
-    }
-  }
-
-  // Check for mobile or desktop mode and initialize file input accordingly.
-  function initializeFileInput() {
-    const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-    fileInputContainer.innerHTML = '';
-
-    alert('isMobile: ' + isMobile);
-    // If mobile view and "flute picker" is available, use it.
-    if (isMobile && typeof window.flutePicker === 'function') {
-      alert('Mobile mode: Using Flute Picker');
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.innerText = 'Select Image (Flute Picker)';
-      btn.addEventListener('click', function () {
-        window.flutePicker(function (file) {
-          // Simulate a file object from flutePicker.
-          const simulatedFile = new File([file.data], file.name, { type: file.type });
-          const fileInput = document.createElement('input');
-          fileInput.type = 'file';
-          fileInput.name = 'image';
-          fileInput.accept = 'image/*';
-          // Use DataTransfer to set the file.
-          const dt = new DataTransfer();
-          dt.items.add(simulatedFile);
-          fileInput.files = dt.files;
-          fileInputContainer.appendChild(fileInput);
-        });
-      });
-      fileInputContainer.appendChild(btn);
-    } else {
-      alert('Desktop mode: Using standard file input');
-      // Default desktop mode: create a standard file input.
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.id = 'fileInput';
-      fileInput.name = 'image';
-      fileInput.accept = 'image/*';
-      fileInput.required = true;
-      fileInputContainer.appendChild(fileInput);
-    }
-  }
-
-  // Fetch the list of uploaded files from the server.
-  function fetchUploadedFiles() {
-    setLoading(true);
-    fetch('/files')
-      .then(response => {
-        if (!response.ok) {
-          return response.text().then(text => { throw new Error(text || response.statusText); });
-        }
-        return response.json();
-      })
-      .then(data => {
-        uploadedFilesContainer.innerHTML = '';
-        if (data.files && data.files.length > 0) {
-          data.files.forEach(file => {
-            const img = document.createElement('img');
-            img.src = `/uploads/${file}`;
-            img.alt = file;
-            img.className = 'uploaded-img';
-            uploadedFilesContainer.appendChild(img);
-          });
-        } else {
-          uploadedFilesContainer.innerHTML = '<p>No files uploaded yet.</p>';
-        }
-        setLoading(false);
-      })
-      .catch(err => {
-        setLoading(false);
-        showMessage('danger', 'Error fetching files: ' + err.message);
-        console.error(err);
-      });
-  }
-
-  // Initialize the file input based on the device.
-  initializeFileInput();
-
-  // Load existing uploaded files on page load.
-  fetchUploadedFiles();
-
-  // Handle form submission for uploading.
-  uploadForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    setLoading(true);
-    const formData = new FormData(uploadForm);
-    fetch('/upload', {
-      method: 'POST',
-      body: formData
-    })
-      .then(response => {
-        if (!response.ok) {
-          return response.text().then(text => { throw new Error(text || response.statusText); });
-        }
-        return response.json();
-      })
-      .then(data => {
-        setLoading(false);
-        if (data.success) {
-          showMessage('success', data.message);
-          // Refresh the uploaded files list.
-          fetchUploadedFiles();
-          // Reset the form and reinitialize the file input.
-          uploadForm.reset();
-          initializeFileInput();
-        } else {
-          showMessage('danger', data.message || 'Upload failed');
-        }
-      })
-      .catch(err => {
-        setLoading(false);
-        showMessage('danger', 'Error during upload: ' + err.message);
-        console.error(err);
-      });
-  });
 });
+
+
+// Capture the photo from the video stream
+captureBtn.addEventListener('click', () => {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const context = canvas.getContext('2d');
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  stream.getTracks().forEach((track) => track.stop());
+  video.style.display = 'none';
+  captureBtn.style.display = 'none';
+  uploadBtn.style.display = 'inline-block';
+
+  // Convert canvas to blob and update the image preview
+  canvas.toBlob(
+    (blob) => {
+      blobToUpload = blob;
+      const url = URL.createObjectURL(blob);
+      capturedImage.src = url;
+      // Show the captured image until the upload is done
+      capturedImage.style.display = 'block';
+    },
+    'image/png'
+  );
+
+  detailsDiv.innerHTML = `
+    <p><strong>Image Details:</strong></p>
+    <p>Format: PNG</p>
+    <p>Resolution: ${canvas.width} x ${canvas.height}</p>
+    <p>Captured at: ${new Date().toLocaleString()}</p>
+  `;
+  showAlert('Image captured. Ready to upload.', 'info');
+});
+
+// Upload the image to the server
+uploadBtn.addEventListener('click', async () => {
+  if (!blobToUpload) {
+    showAlert('No image to upload.', 'danger');
+    return;
+  }
+
+  const formData = new FormData();
+  // Note: The field name is "file" to match what the server expects.
+  formData.append('file', blobToUpload, 'captured_image.png');
+
+  showAlert('Uploading image...', 'info');
+
+  try {
+    const res = await fetch('/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (res.ok) {
+      showAlert('Image uploaded successfully!', 'success');
+      uploadBtn.style.display = 'none';
+      // Hide the captured image preview after upload
+      capturedImage.style.display = 'none';
+      // Update details with file name and a note about file path
+      detailsDiv.innerHTML += `
+        <p>File Name: captured_image.png</p>
+        <p>Note: The file is stored on the server in the "uploads" directory.</p>`;
+      fetchServerImages();
+    } else {
+      showAlert('Upload failed. Try again.', 'danger');
+    }
+  } catch (err) {
+    showAlert('Error uploading image: ' + err.message, 'danger');
+  }
+});
+
+// Fetch the list of uploaded images from the server
+async function fetchServerImages() {
+  try {
+    const res = await fetch('/files');
+    const images = await res.json();
+    serverImagesDiv.innerHTML = '';
+    images.files.forEach((url) => {
+      const img = document.createElement('img');
+      img.src = `/uploads/${url}`;
+      img.className = 'uploaded-image';
+      serverImagesDiv.appendChild(img);
+    });
+    showAlert('Fetched images from server.', 'success');
+  } catch (err) {
+    showAlert('Error fetching images: ' + err.message, 'danger');
+  }
+}
+
+// Fetch images on page load
+fetchServerImages();
